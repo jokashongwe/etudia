@@ -1,0 +1,6 @@
+llama-index==0.10.18
+Flask==3.0.2
+psycopg2-binary==2.9.9
+flask-marshmallow[sqlalchemy]==1.2.0
+connexion==3.0.6
+python-dotenv
