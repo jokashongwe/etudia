@@ -6,3 +6,5 @@ connexion==3.0.6
 python-dotenv
 llama-index-readers-database
 llama-index-readers-mongodb
+Flask-PyMongo
+pydantic

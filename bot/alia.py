@@ -4,7 +4,7 @@ import os
 import time
 from llama_index.llms.openai import OpenAI
 from llama_index.core import Settings, Document, StorageContext, load_index_from_storage
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.core import VectorStoreIndex
 from llama_index.readers.mongodb import SimpleMongoReader
 from .llm_enum import LLM_ENUM
 
@@ -18,21 +18,39 @@ PERSIST_DIR = os.getenv("PERSIST_DIR") or  "./storage"
 
 def get_documents(query=Dict) -> List[Document]:
     reader = SimpleMongoReader(
-        uri=os.getenv("MONGODB_URI")
+        uri=os.getenv("MONGO_URI")
     )
     return reader.lazy_load_data(
-        db_name=os.getenv("MONGODB_DOCUMENTS_DBNAME"),
+        db_name=os.getenv("MONGO_DOCUMENTS_DBNAME"),
         field_names=["desc_text"],
-        collection_name=os.getenv("MONGODB_DOCUMENTS_COLLECTION"),
+        collection_name=os.getenv("MONGO_DOCUMENTS_COLLECTION"),
         query_dict=query
     )
 
+def is_math(text:str) -> bool:
+    pass
 
-def find(query: str, model: str = "gpt-3.5-turbo-0125", llm=LLM_ENUM.OPENAI) -> VectorStoreIndex:
+def image_to_text(image_path: str):
+    pass
+
+def find(query: str, promotion: str, course: str = "", model: str = "gpt-3.5-turbo-0125", llm=LLM_ENUM.OPENAI) -> VectorStoreIndex:
     if llm == LLM_ENUM.OPENAI:
         Settings.llm = OpenAI(temperature=0.2, model=model)
-    documents = [doc for doc in get_documents({})]
-    index = VectorStoreIndex.from_documents(documents)
+    
+    # create index storage for each promotion+course as a cache
+    storage_path = os.path.join(PERSIST_DIR, promotion, course)
+    if not os.path.exists(storage_path):
+        # load the documents and create the index
+        doc_query = {"promotion": promotion, "course": course} if course else {"promotion": promotion}
+        documents = [doc for doc in get_documents(query=doc_query)]
+        index = VectorStoreIndex.from_documents(documents)
+        # store it for later
+        index.storage_context.persist(persist_dir=storage_path)
+    else:
+        # load the existing index
+        storage_context = StorageContext.from_defaults(persist_dir=storage_path)
+        index = load_index_from_storage(storage_context)
+        
     query_engine = index.as_query_engine()
     return query_engine.query(query)
 
