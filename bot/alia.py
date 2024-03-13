@@ -6,6 +6,7 @@ from llama_index.llms.openai import OpenAI
 from llama_index.core import Settings, Document, StorageContext, load_index_from_storage
 from llama_index.core import VectorStoreIndex
 from llama_index.readers.mongodb import SimpleMongoReader
+from slugify import slugify
 from .llm_enum import LLM_ENUM
 
 # Configure env for ALIA BOT
@@ -33,12 +34,14 @@ def is_math(text:str) -> bool:
 def image_to_text(image_path: str):
     pass
 
-def find(query: str, promotion: str, course: str = "", model: str = "gpt-3.5-turbo-0125", llm=LLM_ENUM.OPENAI) -> VectorStoreIndex:
+def find(query: str, promotion: str, course: str = "", source: str= "", model: str = "gpt-3.5-turbo-0125", llm=LLM_ENUM.OPENAI) -> VectorStoreIndex:
     if llm == LLM_ENUM.OPENAI:
         Settings.llm = OpenAI(temperature=0.2, model=model)
     
     # create index storage for each promotion+course as a cache
-    storage_path = os.path.join(PERSIST_DIR, promotion, course)
+    course = slugify(course) if course else ""
+    source = slugify(source) if source else ""
+    storage_path = os.path.join(PERSIST_DIR, source, promotion, course)
     if not os.path.exists(storage_path):
         # load the documents and create the index
         doc_query = {"promotion": promotion, "course": course} if course else {"promotion": promotion}

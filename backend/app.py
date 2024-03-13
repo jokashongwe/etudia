@@ -16,13 +16,15 @@ from .model.course_note import CourseNote
 from .model.user import User
 from .classes.object_id import PydanticObjectId
 
+from bot.alia import find
+
 from dotenv import load_dotenv
 ENV_PATH = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(ENV_PATH)
 
 # Configure Flask & Flask-PyMongo:
 app = Flask(__name__)
-app.config["MONGO_URI"] = os.getenv("MONGO_URI")
+app.config["MONGO_URI"] = os.getenv("MONGO_BACK_URI")
 pymongo = PyMongo(app)
 
 # Get a reference to the recipes collection.
@@ -207,6 +209,21 @@ def delete_user(phone):
         return User(**deleted_note).to_json()
     else:
         flask.abort(404, "note not found")
+
+# ask url
+@app.route("/ask", methods=["POST"])
+def askbot():
+    req = request.get_json()
+    question = req.get("question")
+    promotion = req.get("promotion")
+    course = req.get("course")
+    source = req.get("source")
+    response  = find(query=question, promotion=promotion, course=course, source=source)
+    # print("Response: ", response)
+    return {
+        "anwser": str(response)
+    }
+    
 
 if __name__ == "__main__":
     app.run(port=8000, debug=True)
