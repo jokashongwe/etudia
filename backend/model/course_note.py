@@ -14,5 +14,6 @@ class CourseNote(Model):
     promotion: str
     source: Optional[str]
     added_dt: Optional[datetime]
+    userid: Optional[str]
 
     

@@ -13,6 +13,7 @@ from flask_pymongo import PyMongo
 from pymongo.errors import DuplicateKeyError
 
 from .model.course_note import CourseNote
+from .model.user import User
 from .classes.object_id import PydanticObjectId
 
 from dotenv import load_dotenv
@@ -28,7 +29,6 @@ pymongo = PyMongo(app)
 # Uses a type-hint, so that your IDE knows what's happening!
 notes: Collection = pymongo.db.coursenotes
 users: Collection = pymongo.db.users
-usernotes: Collection = pymongo.db.usernotes
 
 
 @app.errorhandler(404)
@@ -85,7 +85,7 @@ def list_notes():
         }
 
     return {
-        "recipes": [CourseNote(**doc).to_json() for doc in cursor],
+        "notes": [CourseNote(**doc).to_json() for doc in cursor],
         "_links": links,
     }
 
@@ -93,6 +93,19 @@ def list_notes():
 @app.route("/notes/", methods=["POST"])
 def new_notes():
     raw_note = request.get_json()
+    # check if the note already exists
+    fileHash = raw_note.get("file_hash")
+    note_count = notes.count_documents({"file_hash": fileHash})
+    if note_count > 0:
+        note_doc = notes.find_one({"file_hash": fileHash})
+        note = CourseNote(**note_doc)
+        userid = note.userid + ", " + raw_note.get("userid")
+        note.userid = userid
+        notes.update_one({"file_hash": fileHash}, {'$inc': {
+            'userid': userid
+        }})
+        return note.to_json()
+
     raw_note["added_dt"] = datetime.utcnow()
 
     note = CourseNote(**raw_note)
@@ -131,6 +144,67 @@ def delete_note(slug):
     )
     if deleted_note:
         return CourseNote(**deleted_note).to_json()
+    else:
+        flask.abort(404, "note not found")
+
+# Users section 
+        
+@app.route("/users/", methods=["POST"])
+def new_user():
+    raw_user = request.get_json()
+    raw_user["added_dt"] = datetime.utcnow()
+
+    note = User(**raw_user)
+    insert_result = notes.insert_one(note.to_bson())
+    note.id = PydanticObjectId(str(insert_result.inserted_id))
+    #print(note)
+
+    return note.to_json()
+
+@app.route("/users/<string:phone>/notes", methods=["GET"])
+def user_notes(phone):
+    user = users.find_one_or_404({"phone": phone})
+    
+    parsedId = str(user.get('_id'))
+    parsedId = parsedId.replace("'","").replace("ObjectId(", "").replace(")","")
+    print("User Found: ", parsedId)
+    regex = f'{parsedId}'
+    print("User regex: ", regex)
+    cursor = notes.find({"userid": {'$regex': regex}})
+
+    return {
+        "notes": [CourseNote(**doc).to_json() for doc in cursor],
+    }
+
+
+@app.route("/users/<string:phone>", methods=["GET"])
+def get_user(phone):
+    user = users.find_one_or_404({"phone": phone})
+    return User(**user).to_json()
+
+
+@app.route("/users/<string:phone>", methods=["PUT"])
+def update_user(phone):
+    user = User(**request.get_json())
+    user.date_updated = datetime.utcnow()
+    updated_doc = users.find_one_and_update(
+        {"phone": phone},
+        {"$set": user.to_bson()},
+        return_document=ReturnDocument.AFTER,
+    )
+    if updated_doc:
+        return User(**updated_doc).to_json()
+    else:
+        flask.abort(404, "note not found")
+
+
+@app.route("/users/<string:phone>", methods=["DELETE"])
+def delete_user(phone):
+    deleted_note = users.find_one_and_delete(
+        {"phone": phone},
+    )
+    if deleted_note:
+        return User(**deleted_note).to_json()
     else:
         flask.abort(404, "note not found")
 
