@@ -3,7 +3,7 @@ setup(
    name='Etudia',
    author='Jonathan Kashongwe',
    description='Etudia AI Bot',
-   version='0.1',
+   version='0.1.1',
    packages=['backend', 'bot', 'backend.model', 'backend.classes'],
    install_requires=['wheel', 'bar', 'greek'],
    license='MIT',
