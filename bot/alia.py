@@ -34,14 +34,15 @@ def is_math(text:str) -> bool:
 def image_to_text(image_path: str):
     pass
 
-def find(query: str, promotion: str, course: str = "", source: str= "", model: str = "gpt-3.5-turbo-0125", llm=LLM_ENUM.OPENAI) -> VectorStoreIndex:
+def find(query: str, promotion: str, course: str = "", subject: str= "", source: str= "", model: str = "gpt-3.5-turbo-0125", llm=LLM_ENUM.OPENAI) -> VectorStoreIndex:
     if llm == LLM_ENUM.OPENAI:
         Settings.llm = OpenAI(temperature=0.2, model=model)
     
     # create index storage for each promotion+course as a cache
     course = slugify(course) if course else ""
     source = slugify(source) if source else ""
-    storage_path = os.path.join(PERSIST_DIR, source, promotion, course)
+    subject = slugify(subject) if subject else ""
+    storage_path = os.path.join(PERSIST_DIR, source, subject, promotion, course)
     if not os.path.exists(storage_path):
         # load the documents and create the index
         doc_query = {"promotion": promotion, "course": course} if course else {"promotion": promotion}

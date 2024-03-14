@@ -218,12 +218,13 @@ def askbot():
     promotion = req.get("promotion")
     course = req.get("course")
     source = req.get("source")
-    response  = find(query=question, promotion=promotion, course=course, source=source)
+    subject = req.get("subject")
+    response  = find(query=question, promotion=promotion, course=course, source=source, subject=subject)
     # print("Response: ", response)
     return {
-        "anwser": str(response)
+        "answer": str(response)
     }
     
 
 if __name__ == "__main__":
-    app.run(port=8000, debug=True)
+    app.run(port=8000, debug=True, host="0.0.0.0")

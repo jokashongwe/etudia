@@ -4,6 +4,7 @@ psycopg2-binary==2.9.9
 flask-marshmallow[sqlalchemy]==1.2.0
 connexion==3.0.6
 python-slugify==8.0.4
+gunicorn==21.2.0
 python-dotenv
 llama-index-readers-database
 llama-index-readers-mongodb

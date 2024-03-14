@@ -8,6 +8,6 @@ class Model(BaseModel):
 
     def to_bson(self):
         data = self.model_dump(by_alias=True, exclude_none=True)
-        if data["_id"] is None:
+        if data.get('_id'):
             data.pop("_id")
         return data
