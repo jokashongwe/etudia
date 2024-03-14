@@ -4,7 +4,7 @@ setup(
    author='Jonathan Kashongwe',
    description='Etudia AI Bot',
    version='0.1',
-   packages=['etudia'],
+   packages=['backend', 'bot'],
    install_requires=['wheel', 'bar', 'greek'],
    license='MIT',
    author_email='jokashongwe@gmail.com',
