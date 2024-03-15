@@ -103,7 +103,7 @@ def new_notes():
         note = CourseNote(**note_doc)
         userid = f"{note.userid}, {raw_note.get('userid')}"
         note.userid = userid
-        notes.update_one({"file_hash": fileHash}, {'$inc': {
+        notes.update_one({"file_hash": fileHash}, {'$set': {
             'userid': userid
         }})
         return note.to_json()
