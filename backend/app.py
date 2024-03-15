@@ -8,6 +8,7 @@ import os
 from pymongo.collection import Collection, ReturnDocument
 
 import flask
+from flask_cors import CORS
 from flask import Flask, request, url_for, jsonify
 from flask_pymongo import PyMongo
 from pymongo.errors import DuplicateKeyError
@@ -24,6 +25,7 @@ load_dotenv(ENV_PATH)
 
 # Configure Flask & Flask-PyMongo:
 app = Flask(__name__)
+CORS(app)
 app.config["MONGO_URI"] = os.getenv("MONGO_BACK_URI")
 pymongo = PyMongo(app)
 

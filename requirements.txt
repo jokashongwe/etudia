@@ -10,3 +10,4 @@ llama-index-readers-database
 llama-index-readers-mongodb
 Flask-PyMongo
 pydantic
+flask-cors
