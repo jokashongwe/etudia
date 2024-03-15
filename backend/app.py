@@ -101,7 +101,7 @@ def new_notes():
     if note_count > 0:
         note_doc = notes.find_one({"file_hash": fileHash})
         note = CourseNote(**note_doc)
-        userid = note.userid + ", " + raw_note.get("userid")
+        userid = f"{note.userid}, {raw_note.get("userid")}"
         note.userid = userid
         notes.update_one({"file_hash": fileHash}, {'$inc': {
             'userid': userid
