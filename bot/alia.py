@@ -61,7 +61,13 @@ def find(query: str, promotion: str, course: str = "", subject: str= "", source:
     #     index = load_index_from_storage(storage_context)
         
     query_engine = index.as_query_engine()
-    return query_engine.query(query)
+    response = str(query_engine.query(query))
+    if "empty" in response or 'cannot' in response:
+        # find on Web related to the question
+        # add to mongodb 
+        # ask again
+        return "Désolé, je ne dispose pas d'assez d'information pour répondre à cette question"
+    return response
 
 if __name__ == "__main__":
     start = time.time()

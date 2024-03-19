@@ -133,6 +133,9 @@ venv.bak/
 */storage
 /storage/*
 
+
+*/uploads
+
 */.env
 
 # Spyder project settings

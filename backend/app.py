@@ -9,7 +9,7 @@ from pymongo.collection import Collection, ReturnDocument
 
 import flask
 from flask_cors import CORS
-from flask import Flask, request, url_for, jsonify
+from flask import Flask, request, url_for, jsonify, flash, redirect, url_for
 from flask_pymongo import PyMongo
 from pymongo.errors import DuplicateKeyError
 
@@ -18,21 +18,33 @@ from .model.user import User
 from .classes.object_id import PydanticObjectId
 
 from bot.alia import find
+from werkzeug.utils import secure_filename
+import fitz
 
 from dotenv import load_dotenv
-ENV_PATH = os.path.join(os.path.dirname(__file__), '.env')
+
+ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(ENV_PATH)
 
 # Configure Flask & Flask-PyMongo:
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads")
+ALLOWED_EXTENSIONS = {"txt", "pdf"}
+
+
 app = Flask(__name__)
 CORS(app)
 app.config["MONGO_URI"] = os.getenv("MONGO_BACK_URI")
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 pymongo = PyMongo(app)
 
 # Get a reference to the recipes collection.
 # Uses a type-hint, so that your IDE knows what's happening!
 notes: Collection = pymongo.db.coursenotes
 users: Collection = pymongo.db.users
+
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 @app.errorhandler(404)
@@ -79,14 +91,10 @@ def list_notes():
     }
     # Add a 'prev' link if it's not on the first page:
     if page > 1:
-        links["prev"] = {
-            "href": url_for(".list_notes", page=page - 1, _external=True)
-        }
+        links["prev"] = {"href": url_for(".list_notes", page=page - 1, _external=True)}
     # Add a 'next' link if it's not on the last page:
     if page - 1 < notes_count // per_page:
-        links["next"] = {
-            "href": url_for(".list_notes", page=page + 1, _external=True)
-        }
+        links["next"] = {"href": url_for(".list_notes", page=page + 1, _external=True)}
 
     return {
         "notes": [CourseNote(**doc).to_json() for doc in cursor],
@@ -94,28 +102,48 @@ def list_notes():
     }
 
 
-@app.route("/notes/", methods=["POST"])
+@app.route("/notes", methods=["POST"])
 def new_notes():
-    raw_note = request.get_json()
-    # check if the note already exists
-    fileHash = raw_note.get("file_hash")
-    note_count = notes.count_documents({"file_hash": fileHash})
-    if note_count > 0:
-        note_doc = notes.find_one({"file_hash": fileHash})
-        note = CourseNote(**note_doc)
-        userid = f"{note.userid}, {raw_note.get('userid')}"
-        note.userid = userid
-        notes.update_one({"file_hash": fileHash}, {'$set': {
-            'userid': userid
-        }})
-        return note.to_json()
 
-    raw_note["added_dt"] = datetime.utcnow()
+    # check if the file  exists
+    if "note" not in request.files:
+        return jsonify({"message": "No file added "})
+    file = request.files["note"]
+    if file.filename == "":
+        return jsonify({"message": "No file added"})
+    # If file allowed upload
+    if file and not allowed_file(file.filename):
+        return jsonify({"message": "Unsupported format"})
+    raw_note = {
+        "promotion": request.form.get("promotion"),
+        "subject": request.form.get("subject"),
+        "source": request.form.get("source"),
+        "name": request.form.get("name"),
+        "type": request.form.get("type"),
+        "title": request.form.get("title"),
+        "slug": request.form.get("slug"),
+        "file_hash": request.form.get("file_hash"),
+        "course": request.form.get("course"),
+        "userid": request.form.get("userids"),
+    }
+    filename = secure_filename(file.filename)
+    if not os.path.exists(app.config["UPLOAD_FOLDER"]):
+        os.mkdir(app.config["UPLOAD_FOLDER"])
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    file.save(file_path)
+    doc = fitz.open(file_path)
+    text = ""
+    for page in doc:
+        text = text + "\n" + page.get_text()
+
+    raw_note["desc_text"] = text
+
+    raw_note["added_dt"] = datetime.now()
 
     note = CourseNote(**raw_note)
     insert_result = notes.insert_one(note.to_bson())
     note.id = PydanticObjectId(str(insert_result.inserted_id))
-    #print(note)
+    # print(note)
 
     return note.to_json()
 
@@ -151,8 +179,10 @@ def delete_note(slug):
     else:
         flask.abort(404, "note not found")
 
-# Users section 
-        
+
+# Users section
+
+
 @app.route("/users/", methods=["POST"])
 def new_user():
     raw_user = request.get_json()
@@ -161,20 +191,21 @@ def new_user():
     note = User(**raw_user)
     insert_result = notes.insert_one(note.to_bson())
     note.id = PydanticObjectId(str(insert_result.inserted_id))
-    #print(note)
+    # print(note)
 
     return note.to_json()
+
 
 @app.route("/users/<string:phone>/notes", methods=["GET"])
 def user_notes(phone):
     user = users.find_one_or_404({"phone": phone})
-    
-    parsedId = str(user.get('_id'))
-    parsedId = parsedId.replace("'","").replace("ObjectId(", "").replace(")","")
+
+    parsedId = str(user.get("_id"))
+    parsedId = parsedId.replace("'", "").replace("ObjectId(", "").replace(")", "")
     print("User Found: ", parsedId)
-    regex = f'{parsedId}'
+    regex = f"{parsedId}"
     print("User regex: ", regex)
-    cursor = notes.find({"userid": {'$regex': regex}})
+    cursor = notes.find({"userid": {"$regex": regex}})
 
     return {
         "notes": [CourseNote(**doc).to_json() for doc in cursor],
@@ -212,6 +243,7 @@ def delete_user(phone):
     else:
         flask.abort(404, "note not found")
 
+
 # ask url
 @app.route("/ask", methods=["POST"])
 def askbot():
@@ -221,12 +253,16 @@ def askbot():
     course = req.get("course")
     source = req.get("source")
     subject = req.get("subject")
-    response  = find(query=question, promotion=promotion, course=course, source=source, subject=subject)
+    response = find(
+        query=question,
+        promotion=promotion,
+        course=course,
+        source=source,
+        subject=subject,
+    )
     # print("Response: ", response)
-    return {
-        "answer": str(response)
-    }
-    
+    return {"answer": str(response)}
+
 
 if __name__ == "__main__":
-    app.run(port=8000, host='0.0.0.0')
+    app.run(port=8000, host="0.0.0.0", debug=True)
